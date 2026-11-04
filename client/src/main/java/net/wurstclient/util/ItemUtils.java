@@ -1,0 +1,126 @@
+/*
+ * Copyright (c) 2014-2026 Wurst-Imperium and contributors.
+ *
+ * This source code is subject to the terms of the GNU General Public
+ * License, version 3. If a copy of the GPL was not distributed with this
+ * file, You can obtain one at: https://www.gnu.org/licenses/gpl-3.0.txt
+ */
+package net.wurstclient.util;
+
+import java.util.OptionalDouble;
+
+import net.minecraft.IdentifierException;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.equipment.Equippable;
+import net.wurstclient.WurstClient;
+
+public enum ItemUtils
+{
+	;
+	
+	private static final Minecraft MC = WurstClient.MC;
+	
+	/**
+	 * @param nameOrId
+	 *            a String containing the item's name ({@link Identifier}) or
+	 *            numeric ID.
+	 * @return the requested item, or null if the item doesn't exist.
+	 */
+	public static Item getItemFromNameOrID(String nameOrId)
+	{
+		if(MathUtils.isInteger(nameOrId))
+		{
+			// There is no getOptionalValue() for raw IDs, so this detects when
+			// the registry defaults and returns null instead
+			int id = Integer.parseInt(nameOrId);
+			Item item = BuiltInRegistries.ITEM.byId(id);
+			if(id != 0 && BuiltInRegistries.ITEM.getId(item) == 0)
+				return null;
+			
+			return item;
+		}
+		
+		try
+		{
+			// getOptionalValue() returns null instead of Items.AIR if the
+			// requested item doesn't exist
+			return BuiltInRegistries.ITEM
+				.getOptional(Identifier.parse(nameOrId)).orElse(null);
+			
+		}catch(IdentifierException e)
+		{
+			return null;
+		}
+	}
+	
+	public static OptionalDouble calculateModifiedAttribute(ItemStack stack,
+		Holder<Attribute> attribute, EquipmentSlot slot)
+	{
+		AttributeInstance instance =
+			new AttributeInstance(attribute, ignored -> {});
+		instance.setBaseValue(MC.player.getAttributeBaseValue(attribute));
+		
+		stack.forEachModifier(slot, (modifierAttribute, modifier) -> {
+			if(modifierAttribute != attribute)
+				return;
+			
+			instance.removeModifier(modifier.id());
+			instance.addTransientModifier(modifier);
+		});
+		
+		return instance.getModifiers().isEmpty() ? OptionalDouble.empty()
+			: OptionalDouble.of(instance.getValue());
+	}
+	
+	public static OptionalDouble getArmorAttribute(ItemStack stack,
+		Holder<Attribute> attribute)
+	{
+		Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
+		if(equippable == null)
+			return OptionalDouble.empty();
+		
+		return calculateModifiedAttribute(stack, attribute, equippable.slot());
+	}
+	
+	public static OptionalDouble getArmorPoints(ItemStack stack)
+	{
+		return getArmorAttribute(stack, Attributes.ARMOR);
+	}
+	
+	public static OptionalDouble getToughness(ItemStack stack)
+	{
+		return getArmorAttribute(stack, Attributes.ARMOR_TOUGHNESS);
+	}
+	
+	public static EquipmentSlot getArmorSlot(ItemStack stack)
+	{
+		Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
+		
+		return equippable != null ? equippable.slot() : null;
+	}
+	
+	public static boolean hasEffect(ItemStack stack, Holder<MobEffect> effect)
+	{
+		PotionContents potionContents = stack.getComponents()
+			.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
+		
+		for(MobEffectInstance effectInstance : potionContents.getAllEffects())
+			if(effectInstance.getEffect() == effect)
+				return true;
+			
+		return false;
+	}
+}

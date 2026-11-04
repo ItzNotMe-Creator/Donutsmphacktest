@@ -1,0 +1,24 @@
+plugins { id 'fabric-loom' version '1.14.10' }
+version = '2.0.0'
+group = 'dev.donutlab'
+base { archivesName = 'Donut-Client' }
+repositories { mavenCentral() }
+dependencies {
+ minecraft 'com.mojang:minecraft:1.21.11'
+ mappings loom.officialMojangMappings()
+ modImplementation 'net.fabricmc:fabric-loader:0.20.1'
+ modImplementation 'net.fabricmc.fabric-api:fabric-api:0.141.6+1.21.11'
+}
+loom { accessWidenerPath = file('src/main/resources/wurst.accesswidener') }
+processResources { inputs.property 'version', project.version; filesMatching('fabric.mod.json') { expand version: project.version } }
+java { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21; withSourcesJar() }
+jar { from('LICENSE.txt'); from('UPSTREAM_COMMIT') }
+fabricApi.configureTests {
+ createSourceSet = true
+ enableGameTests = false
+ enableClientGameTests = true
+ modId = 'donut_smoke'
+}
+sourceSets.gametest.java.setSrcDirs(['src/smoke/java'])
+sourceSets.gametest.resources.setSrcDirs(['src/smoke/resources'])
+loom.runs.clientGameTest { vmArg '-Dfabric.client.gametest.disableNetworkSynchronizer=true' }

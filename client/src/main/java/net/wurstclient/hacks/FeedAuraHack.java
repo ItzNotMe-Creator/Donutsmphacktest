@@ -1,0 +1,184 @@
+/*
+ * Copyright (c) 2014-2026 Wurst-Imperium and contributors.
+ *
+ * This source code is subject to the terms of the GNU General Public
+ * License, version 3. If a copy of the GPL was not distributed with this
+ * file, You can obtain one at: https://www.gnu.org/licenses/gpl-3.0.txt
+ */
+package net.wurstclient.hacks;
+
+import java.util.List;
+import java.util.Random;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.wurstclient.Category;
+import net.wurstclient.SearchTags;
+import net.wurstclient.events.HandleInputListener;
+import net.wurstclient.events.PreMotionListener;
+import net.wurstclient.events.RenderListener;
+import net.wurstclient.hack.Hack;
+import net.wurstclient.settings.CheckboxSetting;
+import net.wurstclient.settings.SliderSetting;
+import net.wurstclient.settings.SliderSetting.ValueDisplay;
+import net.wurstclient.settings.filters.FilterBabiesSetting;
+import net.wurstclient.util.EntityUtils;
+import net.wurstclient.util.RenderUtils;
+
+@SearchTags({"feed aura", "BreedAura", "breed aura", "AutoBreeder",
+	"auto breeder"})
+public final class FeedAuraHack extends Hack
+	implements PreMotionListener, HandleInputListener, RenderListener
+{
+	private final SliderSetting range = new SliderSetting("Range",
+		"Determines how far FeedAura will reach to feed animals.\n"
+			+ "Anything that is further away than the specified value will not be fed.",
+		5, 1, 10, 0.05, ValueDisplay.DECIMAL);
+	
+	private final FilterBabiesSetting filterBabies =
+		new FilterBabiesSetting(this, true);
+	
+	private final CheckboxSetting filterUntamed =
+		new CheckboxSetting("Filter untamed",
+			"description.wurst.setting.feedaura.filter_untamed", false);
+	
+	private final CheckboxSetting filterHorses =
+		new CheckboxSetting("Filter horse-like animals",
+			"description.wurst.setting.feedaura.filter_horses", false);
+	
+	private final Random random = new Random();
+	private LivingEntity clickTarget;
+	private LivingEntity renderTarget;
+	
+	public FeedAuraHack()
+	{
+		super("FeedAura");
+		setCategory(Category.OTHER);
+		addSetting(range);
+		addSetting(filterBabies);
+		addSetting(filterUntamed);
+		addSetting(filterHorses);
+	}
+	
+	@Override
+	protected void onEnable()
+	{
+		EVENTS.add(PreMotionListener.class, this);
+		EVENTS.add(HandleInputListener.class, this);
+		EVENTS.add(RenderListener.class, this);
+	}
+	
+	@Override
+	protected void onDisable()
+	{
+		EVENTS.remove(PreMotionListener.class, this);
+		EVENTS.remove(HandleInputListener.class, this);
+		EVENTS.remove(RenderListener.class, this);
+		clickTarget = null;
+		renderTarget = null;
+	}
+	
+	@Override
+	public void onPreMotion()
+	{
+		ItemStack heldStack = MC.player.getInventory().getSelectedItem();
+		double rangeSq = range.getValueSq();
+		
+		List<LivingEntity> targets = EntityUtils
+			.getAliveEntities(LivingEntity.class)
+			.filter(e -> EntityUtils.distanceToHitboxSq(e) <= rangeSq)
+			.filter(e -> canFeed(e, heldStack)).filter(filterBabies)
+			.filter(e -> !filterUntamed.isChecked() || !isUntamed(e))
+			.filter(
+				e -> !filterHorses.isChecked() || !(e instanceof AbstractHorse))
+			.toList();
+		
+		if(targets.isEmpty())
+		{
+			clickTarget = null;
+			renderTarget = null;
+			return;
+		}
+		
+		clickTarget = targets.get(random.nextInt(targets.size()));
+		renderTarget = clickTarget;
+		WURST.getRotationFaker()
+			.faceVectorPacket(clickTarget.getBoundingBox().getCenter());
+	}
+	
+	private boolean canFeed(LivingEntity entity, ItemStack stack)
+	{
+		if(entity instanceof Animal animal)
+			return animal.isFood(stack) && animal.canFallInLove();
+		
+		return false;
+	}
+	
+	private boolean isUntamed(LivingEntity entity)
+	{
+		return entity instanceof AbstractHorse horse && !horse.isTamed()
+			|| entity instanceof TamableAnimal animal && !animal.isTame();
+	}
+	
+	@Override
+	public void onHandleInput()
+	{
+		if(clickTarget == null)
+			return;
+		
+		MultiPlayerGameMode gm = MC.gameMode;
+		LocalPlayer player = MC.player;
+		
+		if(gm.isDestroying() || player.isHandsBusy())
+			return;
+		
+		EntityHitResult hitResult = EntityUtils.createHitResult(clickTarget);
+		InteractionHand hand = InteractionHand.MAIN_HAND;
+		InteractionResult result =
+			gm.interactAt(player, clickTarget, hitResult, hand);
+		
+		if(!result.consumesAction())
+			result = gm.interact(player, clickTarget, hand);
+		
+		if(result instanceof InteractionResult.Success success
+			&& success.swingSource() == InteractionResult.SwingSource.CLIENT)
+			player.swing(hand);
+		
+		clickTarget = null;
+	}
+	
+	@Override
+	public void onRender(PoseStack matrixStack, float partialTicks)
+	{
+		if(renderTarget == null)
+			return;
+		
+		float p = 1;
+		if(renderTarget.getMaxHealth() > 1e-5)
+			p = renderTarget.getHealth() / renderTarget.getMaxHealth();
+		float green = p * 2F;
+		float red = 2 - green;
+		float[] rgb = {red, green, 0};
+		int quadColor = RenderUtils.toIntColor(rgb, 0.25F);
+		int lineColor = RenderUtils.toIntColor(rgb, 0.5F);
+		
+		AABB box = EntityUtils.getLerpedBox(renderTarget, partialTicks);
+		if(p < 1)
+			box = box.deflate((1 - p) * 0.5 * box.getXsize(),
+				(1 - p) * 0.5 * box.getYsize(), (1 - p) * 0.5 * box.getZsize());
+		
+		RenderUtils.drawSolidBox(matrixStack, box, quadColor, false);
+		RenderUtils.drawOutlinedBox(matrixStack, box, lineColor, false);
+	}
+}

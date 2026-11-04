@@ -1,24 +1,23 @@
-# Donut Lab — Fabric 1.21.11
+# Donut Client — Fabric 1.21.11
 
-Client exploration toolkit for your Minecraft Java server.
+A Wurst-based client with a custom Donut dashboard, searchable categorized modules, favorites, persistent settings, keybinds, ESP, Freecam, Fullbright and combat/movement tools.
 
-[Download Donut Lab 1.0.0 (.jar)](https://github.com/ItzNotMe-Creator/Donutsmphacktest/raw/refs/heads/main/downloads/donut-lab-1.0.0.jar)
+**[Download Donut Client 2.0.0 (.jar)](https://github.com/ItzNotMe-Creator/Donutsmphacktest/raw/refs/heads/main/downloads/Donut-Client-2.0.0.jar)** · [Full corresponding source (.jar)](https://github.com/ItzNotMe-Creator/Donutsmphacktest/raw/refs/heads/main/downloads/Donut-Client-2.0.0-sources.jar)
 
-Compilation and JAR integrity checks passed. In-game behavior has not been verified.
+Install Fabric Loader **0.20.1+**, **Fabric API for Minecraft 1.21.11**, and Java 21. Remove the old Donut Lab JAR and any separate Wurst JAR, then put the new JAR in your `mods` folder.
 
-Install Fabric Loader 0.18.4 or newer for **Minecraft 1.21.11**, install Fabric API for that same Minecraft version, and place `donut-lab-1.0.0.jar` in your Minecraft `mods` folder. Requires Java 21.
+**Right Shift** opens the new dashboard. **Right Control** opens the classic category windows. Left-click modules to toggle them, right-click for settings and keybinds, and use the star controls for favorites.
 
-Press **Right Shift** while in-game to open the dark teal menu. Escape closes it.
+![Actual in-game dashboard](docs/dashboard.png)
 
-- Nearby storage scanner: chests, barrels, shulker boxes, furnaces and hoppers in a 32-block cube radius around the scan's starting position. Processes 2,048 positions per tick; reports at most 100 matches. Only loaded client chunks are searchable. Results are block coordinates, not proof of a base. No remote or server-wide scan.
-- Auto sprint while holding forward, subject to Minecraft's normal movement rules.
-- Maximum vanilla brightness toggle, restoring the previous value when toggled off. This is not fullbright.
-- One session-only waypoint, with distance and dimension awareness.
-- Toggleable coordinates HUD, coordinates in the menu, and a copy-to-clipboard button.
-- Clear scan results and waypoint.
+See [installation, features, controls, source credits and build instructions](client/README.md).
 
-Settings and waypoint are held for the current game session. The results panel shows as many entries as fit on screen; it currently has no scrolling. Use a normal GUI scale for the 400-pixel-wide menu.
+Build and a graphical local-world smoke test passed. See [the precise validation scope](client/TESTING.md). DonutSMP behavior is unverified.
 
-## Build
+This is a customized open-source Wurst build, not Krypton or an official DonutSMP client. No claim of DonutSMP anticheat bypasses is made. Base finding and ESP use information received by the client.
 
-With Java 21: `./gradlew build`. The installable remapped artifact is `build/libs/donut-lab-1.0.0.jar`. Gradle needs access to Fabric, Mojang, Maven Central and Gradle distribution hosts. On proxy-only hosts configure Java/Gradle HTTP and HTTPS proxy properties in the user's Gradle configuration, not in this repository.
+## Source and license
+
+The new client lives in `client/` and is based on Wurst-Imperium/Wurst7's official 1.21.11 branch, under [GPL-3.0-or-later](client/LICENSE.txt). Original module implementations and copyright notices are retained. See [the upstream revision](client/UPSTREAM_COMMIT) and the modification summary in [client/README.md](client/README.md).
+
+The original small Donut Lab toolkit remains at the repository root for reference. Its documentation is in [LEGACY-TOOLKIT.md](LEGACY-TOOLKIT.md); it is not the new client.
