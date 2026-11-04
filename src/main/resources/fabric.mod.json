@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"donutlab","version":"1.0.0","name":"Donut Lab","description":"Client exploration and testing toolkit","environment":"client","entrypoints":{"client":["dev.donutlab.DonutLab"]},"depends":{"fabricloader":">=0.18.4","minecraft":"1.21.11","java":">=21","fabric-api":"*"}}
